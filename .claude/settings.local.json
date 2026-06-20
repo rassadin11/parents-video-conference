@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d/frontend/video-rings)",
+      "Bash(ls -la /d/frontend/video-rings)"
+    ]
+  }
+}
