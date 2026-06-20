@@ -274,6 +274,33 @@ textarea {
   flex: 1 1 auto;
 }
 
+/* Вертикальное видео собеседника показываем ЦЕЛИКОМ (с полями по бокам),
+   а не обрезаем под узкую колонку. Перебиваем object-fit: cover, который
+   LiveKit ставит, пока не распознает портретную ориентацию по размерам кадра. */
+.family-stage[data-peer="portrait"] .family-peers .lk-participant-media-video {
+  object-fit: contain;
+  background-color: #000;
+}
+
+/* Режим демонстрации экрана: экран крупно, камеры — миниатюрами. */
+.family-screen {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
+.family-thumbs {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.family-thumbs > .family-tile {
+  flex: 1 1 0;
+}
+
 .family-waiting {
   margin: auto;
   padding: 16px;
@@ -312,6 +339,14 @@ textarea {
     flex: 1 1 0;
     width: auto;
   }
+
+  /* Демонстрация экрана: миниатюры камер — узкой колонкой справа. */
+  .family-thumbs {
+    flex: 0 0 auto;
+    width: clamp(160px, 20vw, 260px);
+    flex-direction: column;
+    overflow-y: auto;
+  }
 }
 
 /* На телефоне переворачиваем в столбец: собеседник сверху крупно,
@@ -327,6 +362,17 @@ textarea {
 
   .family-peers {
     flex: 1 1 auto;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  /* Демонстрация экрана: экран сверху крупно, камеры — полосой снизу. */
+  .family-stage[data-mode="screen"] {
+    flex-direction: column;
+  }
+
+  .family-thumbs {
+    flex: 0 0 28vh;
     flex-direction: row;
     overflow-x: auto;
   }

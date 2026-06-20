@@ -12,7 +12,7 @@ import { Track } from "livekit-client";
 /**
  * Своя раскладка вместо стандартного <VideoConference/>.
  *
- * Ширина колонки собеседника зависит от ориентации ЕГО видео
+ * Обычный режим — ширина колонки собеседника зависит от ориентации ЕГО видео
  * (как её определяет LiveKit: width > height ? landscape : portrait):
  *
  *   собеседник вертикальный (телефон)   собеседник горизонтальный
@@ -21,16 +21,28 @@ import { Track } from "livekit-client";
  *   │   крупно слева   │ справа │       │  поровну    │  поровну    │
  *   └──────────────────┴────────┘       └─────────────┴─────────────┘
  *
+ * Когда кто-то включает демонстрацию экрана — экран показывается крупно,
+ * а камеры участников уезжают миниатюрами в боковую колонку.
+ *
  * Object-fit LiveKit ставит сам: вертикальное видео — contain (видно
- * целиком, без обрезки), горизонтальное — cover.
+ * целиком, без обрезки), горизонтальное — cover, демонстрация экрана — contain.
  */
 export function FamilyConference() {
-  const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
-    onlySubscribed: false,
-  });
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: true },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false },
+  );
 
-  const selfTrack = tracks.find((t) => t.participant.isLocal);
-  const peerTracks = tracks.filter((t) => !t.participant.isLocal);
+  const cameraTracks = tracks.filter((t) => t.source === Track.Source.Camera);
+  // withPlaceholder: false → запись о демонстрации появляется только когда
+  // экран реально шарят (кем угодно из участников).
+  const screenTrack = tracks.find((t) => t.source === Track.Source.ScreenShare);
+
+  const selfTrack = cameraTracks.find((t) => t.participant.isLocal);
+  const peerTracks = cameraTracks.filter((t) => !t.participant.isLocal);
 
   // Узкую колонку 9:16 даём собеседнику ТОЛЬКО когда его кадр вертикальный.
   // Горизонтальный → делим экран поровну. Пока собеседника/размеров нет —
@@ -45,31 +57,46 @@ export function FamilyConference() {
 
   return (
     <div className="family-conference">
-      <div className="family-stage" data-peer={peerState}>
-        {/* Ты — большим планом слева */}
-        <div className="family-self">
-          {selfTrack && <ParticipantTile trackRef={selfTrack} className="family-tile" />}
-        </div>
-
-        {/* Собеседник(и) — вертикальной колонкой справа */}
-        <div className="family-peers">
-          {peerTracks.length === 0 ? (
-            <p className="family-waiting">Ждём собеседника…</p>
-          ) : (
-            peerTracks.map((t) => (
+      {screenTrack ? (
+        // Демонстрация экрана — крупно, камеры миниатюрами сбоку.
+        <div className="family-stage" data-mode="screen">
+          <div className="family-screen">
+            <ParticipantTile trackRef={screenTrack} className="family-tile" />
+          </div>
+          <div className="family-thumbs">
+            {cameraTracks.map((t) => (
               <ParticipantTile
                 key={t.participant.identity}
                 trackRef={t}
                 className="family-tile"
               />
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        // Обычный режим: ты слева, собеседник справа.
+        <div className="family-stage" data-mode="cameras" data-peer={peerState}>
+          <div className="family-self">
+            {selfTrack && <ParticipantTile trackRef={selfTrack} className="family-tile" />}
+          </div>
 
-      <ControlBar
-        controls={{ chat: false, screenShare: false, settings: false }}
-      />
+          <div className="family-peers">
+            {peerTracks.length === 0 ? (
+              <p className="family-waiting">Ждём собеседника…</p>
+            ) : (
+              peerTracks.map((t) => (
+                <ParticipantTile
+                  key={t.participant.identity}
+                  trackRef={t}
+                  className="family-tile"
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      <ControlBar controls={{ chat: false, screenShare: true, settings: false }} />
       <RoomAudioRenderer />
       <ConnectionStateToast />
     </div>
