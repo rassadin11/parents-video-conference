@@ -19,3 +19,9 @@
 
 # typescript
 *.tsbuildinfo
+
+# vercel
+.vercel
+
+# Claude Code local settings (личное, не для репозитория)
+.claude/settings.local.json
