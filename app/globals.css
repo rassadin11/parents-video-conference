@@ -10,6 +10,7 @@
   --danger: #d4351c;
   --card: #ffffff;
   --border: #d7e2ee;
+  --focus: #0b6bcb;          /* синий — кольцо фокуса */
 }
 
 * {
@@ -23,13 +24,26 @@ body {
   height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--fg);
+  color-scheme: light;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 20px;
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Поля и кнопки по умолчанию НЕ наследуют шрифт — задаём явно. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /* ---------- Общие экраны ---------- */
@@ -43,6 +57,10 @@ body {
   justify-content: center;
   gap: 28px;
   padding: 24px;
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-right: max(24px, env(safe-area-inset-right));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: max(24px, env(safe-area-inset-left));
   text-align: center;
 }
 
@@ -80,13 +98,16 @@ body {
   text-decoration: none;
   border: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 
   box-shadow: 0 10px 30px rgba(31, 157, 85, 0.35);
   transition: transform 0.08s ease, background 0.15s ease;
 }
 
-.call-button:hover {
-  background: var(--primary-dark);
+@media (hover: hover) {
+  .call-button:hover {
+    background: var(--primary-dark);
+  }
 }
 
 .call-button:active {
@@ -114,6 +135,7 @@ body {
   cursor: pointer;
   border: 2px solid transparent;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .primary-button {
@@ -121,8 +143,10 @@ body {
   color: #fff;
 }
 
-.primary-button:hover {
-  background: var(--primary-dark);
+@media (hover: hover) {
+  .primary-button:hover {
+    background: var(--primary-dark);
+  }
 }
 
 .secondary-button {
@@ -131,8 +155,23 @@ body {
   border-color: var(--border);
 }
 
+@media (hover: hover) {
+  .secondary-button:hover {
+    border-color: var(--muted);
+  }
+}
+
 .danger-text {
   color: var(--danger);
+}
+
+/* ---------- Доступность: видимый фокус ---------- */
+
+.call-button:focus-visible,
+.primary-button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
 /* ---------- Видео-комната ---------- */
@@ -180,10 +219,127 @@ body {
   border-radius: 12px;
 }
 
+.field input:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .saved-note {
   background: #e7f6ee;
   color: var(--primary-dark);
   border-radius: 12px;
   padding: 12px 14px;
   font-weight: 700;
+}
+
+/* ---------- Раскладка видеозвонка ----------
+   Ты (веб-камера, 16:9) — крупно слева, собеседник (телефон, 9:16) —
+   вертикальной колонкой справа. Ориентацию кадра LiveKit ставит сам. */
+
+.family-conference {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--lk-bg, #111);
+}
+
+.family-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.family-self {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+
+.family-peers {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.family-tile {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.family-peers > .family-tile {
+  flex: 1 1 auto;
+}
+
+.family-waiting {
+  margin: auto;
+  padding: 16px;
+  color: var(--lk-fg3, #cdd3da);
+  font-size: 18px;
+  text-align: center;
+}
+
+/* Панель управления — отделяем линией и учитываем «чёлку» снизу. */
+.family-conference .lk-control-bar {
+  border-top: 1px solid var(--lk-border-color, rgba(255, 255, 255, 0.1));
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+}
+
+/* Десктоп: ты слева, собеседник — колонкой справа. */
+@media (min-width: 721px) {
+  .family-stage {
+    flex-direction: row;
+  }
+
+  .family-self {
+    flex: 1 1 auto;
+  }
+
+  /* По умолчанию (вертикальный собеседник или ожидание) — узкая колонка 9:16. */
+  .family-peers {
+    flex: 0 0 auto;
+    width: clamp(180px, 26vw, 300px);
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* Собеседник горизонтальный → делим экран поровну. */
+  .family-stage[data-peer="landscape"] .family-self,
+  .family-stage[data-peer="landscape"] .family-peers {
+    flex: 1 1 0;
+    width: auto;
+  }
+}
+
+/* На телефоне переворачиваем в столбец: собеседник сверху крупно,
+   ты — снизу узкой полосой. */
+@media (max-width: 720px) {
+  .family-stage {
+    flex-direction: column-reverse;
+  }
+
+  .family-self {
+    flex: 0 0 28vh;
+  }
+
+  .family-peers {
+    flex: 1 1 auto;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}
+
+/* ---------- Уважаем настройку «меньше движения» ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .call-button {
+    transition: background 0.15s ease;
+  }
+
+  .call-button:active {
+    transform: none;
+  }
 }

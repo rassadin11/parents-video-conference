@@ -1,9 +1,10 @@
 "use client";
 
-import { LiveKitRoom, VideoConference } from "@livekit/components-react";
+import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FamilyConference } from "./FamilyConference";
 
 type Status =
   | { kind: "preparing" }
@@ -135,7 +136,7 @@ export default function CallPage() {
 
   // Шаг 3: в звонке.
   return (
-    <div className="call-stage">
+    <div className="call-stage" data-lk-theme="default">
       <LiveKitRoom
         token={status.token}
         serverUrl={serverUrl}
@@ -150,7 +151,7 @@ export default function CallPage() {
           })
         }
       >
-        <VideoConference />
+        <FamilyConference />
       </LiveKitRoom>
     </div>
   );
