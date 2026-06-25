@@ -3,13 +3,13 @@
 import { LiveKitRoom } from "@livekit/components-react";
 import "@livekit/components-styles";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FamilyConference } from "./FamilyConference";
 
 type Status =
   | { kind: "preparing" }
   | { kind: "needs-setup" }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; detail?: string }
   | { kind: "ready"; token: string } // токен есть, ждём нажатия «Войти»
   | { kind: "in-call"; token: string };
 
@@ -17,6 +17,22 @@ export default function CallPage() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>({ kind: "preparing" });
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+
+  // Диагностика связи: ?relay=1 в URL принудительно гонит медиа через TURN-relay
+  // (iceTransportPolicy: 'relay'). Если в обычном режиме звонок падает, а с
+  // ?relay=1 — поднимается, значит у собеседника режется прямой WebRTC/UDP.
+  const [forceRelay, setForceRelay] = useState(false);
+  useEffect(() => {
+    setForceRelay(new URLSearchParams(window.location.search).get("relay") === "1");
+  }, []);
+
+  const connectOptions = useMemo(
+    () =>
+      forceRelay
+        ? { rtcConfig: { iceTransportPolicy: "relay" as const } }
+        : undefined,
+    [forceRelay],
+  );
 
   // Шаг 1: получаем токен заранее (БЕЗ доступа к камере).
   // Доступ к камере запросим только после нажатия «Войти в звонок» —
@@ -103,6 +119,7 @@ export default function CallPage() {
     return (
       <Centered>
         <p className="danger-text">{status.message}</p>
+        {status.detail && <p className="hint">Детали: {status.detail}</p>}
         <button className="secondary-button" onClick={() => router.push("/")}>
           На главную
         </button>
@@ -140,16 +157,19 @@ export default function CallPage() {
       <LiveKitRoom
         token={status.token}
         serverUrl={serverUrl}
+        connectOptions={connectOptions}
         connect
         video
         audio
         onDisconnected={() => router.push("/")}
-        onError={() =>
+        onError={(error) => {
+          console.error("LiveKit connection error:", error);
           setStatus({
             kind: "error",
             message: "Связь прервалась. Попробуй позвонить снова.",
-          })
-        }
+            detail: `${error.name}: ${error.message}`,
+          });
+        }}
       >
         <FamilyConference />
       </LiveKitRoom>
