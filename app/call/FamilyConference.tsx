@@ -8,6 +8,15 @@ import {
   useTracks,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
+import type { MediaAvailability } from "./media";
+
+type FamilyConferenceProps = {
+  /** Какие устройства есть на этом компьютере — по ним собираем панель кнопок. */
+  devices: MediaAvailability;
+  /** Некритичное предупреждение поверх видео (нет камеры и т.п.). */
+  notice?: string | null;
+  onDismissNotice?: () => void;
+};
 
 /**
  * Своя раскладка вместо стандартного <VideoConference/>.
@@ -27,7 +36,11 @@ import { Track } from "livekit-client";
  * Object-fit LiveKit ставит сам: вертикальное видео — contain (видно
  * целиком, без обрезки), горизонтальное — cover, демонстрация экрана — contain.
  */
-export function FamilyConference() {
+export function FamilyConference({
+  devices,
+  notice,
+  onDismissNotice,
+}: FamilyConferenceProps) {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -57,6 +70,22 @@ export function FamilyConference() {
 
   return (
     <div className="family-conference">
+      {notice && (
+        <div className="family-notice" role="status">
+          <span>{notice}</span>
+          {onDismissNotice && (
+            <button
+              type="button"
+              className="family-notice-close"
+              onClick={onDismissNotice}
+              aria-label="Скрыть сообщение"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {screenTrack ? (
         // Демонстрация экрана — крупно, камеры миниатюрами сбоку.
         <div className="family-stage" data-mode="screen">
@@ -96,7 +125,18 @@ export function FamilyConference() {
         </div>
       )}
 
-      <ControlBar controls={{ chat: false, screenShare: true, settings: false }} />
+      {/* Кнопки камеры и микрофона показываем только если устройство есть:
+          иначе нажатие всё равно закончится ошибкой доступа. */}
+      <ControlBar
+        controls={{
+          camera: devices.camera,
+          microphone: devices.microphone,
+          chat: false,
+          screenShare: true,
+          settings: false,
+          leave: true,
+        }}
+      />
       <RoomAudioRenderer />
       <ConnectionStateToast />
     </div>

@@ -5,6 +5,12 @@ import "@livekit/components-styles";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { FamilyConference } from "./FamilyConference";
+import {
+  describeDeviceFailure,
+  describeMissingDevices,
+  isMediaDeviceError,
+  useMediaAvailability,
+} from "./media";
 
 type Status =
   | { kind: "preparing" }
@@ -17,6 +23,14 @@ export default function CallPage() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>({ kind: "preparing" });
   const serverUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+
+  // Что есть на этом устройстве. Проверяем заранее и без запроса разрешения,
+  // чтобы не просить камеру там, где её нет: такой отказ прилетает в onError
+  // комнаты и раньше выбрасывал пользователя из звонка.
+  const devices = useMediaAvailability();
+
+  // Некритичное предупреждение поверх видео («камера не найдена» и т.п.).
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Диагностика связи: ?relay=1 в URL принудительно гонит медиа через TURN-relay
   // (iceTransportPolicy: 'relay'). Если в обычном режиме звонок падает, а с
@@ -129,18 +143,34 @@ export default function CallPage() {
 
   if (status.kind === "ready") {
     // Шаг 2: явное нажатие → запрос камеры происходит в контексте жеста.
+    if (devices === null) {
+      return <Centered>Готовлю звонок…</Centered>;
+    }
+
+    const missing = describeMissingDevices(devices);
+    // Спрашиваем разрешение только на то, что есть: «камеру», «микрофон» или оба.
+    const asked = [
+      devices.camera ? "камеру" : null,
+      devices.microphone ? "микрофон" : null,
+    ]
+      .filter(Boolean)
+      .join(" и ");
+
     return (
       <Centered>
         <p className="greeting">Готово к звонку</p>
-        <p className="hint">
-          Сейчас браузер спросит разрешение на камеру и микрофон — нажми
-          «Разрешить».
-        </p>
+        {asked && (
+          <p className="hint">
+            Сейчас браузер спросит разрешение на {asked} — нажми «Разрешить».
+          </p>
+        )}
+        {missing && <p className="warning-note">{missing}</p>}
         <button
           className="primary-button"
-          onClick={() =>
-            setStatus({ kind: "in-call", token: status.token })
-          }
+          onClick={() => {
+            setNotice(missing);
+            setStatus({ kind: "in-call", token: status.token });
+          }}
         >
           🎥 Войти в звонок
         </button>
@@ -151,7 +181,8 @@ export default function CallPage() {
     );
   }
 
-  // Шаг 3: в звонке.
+  // Шаг 3: в звонке. Публикуем только то, что реально есть на устройстве —
+  // просить камеру там, где её нет, значит получить NotFoundError и вылететь.
   return (
     <div className="call-stage" data-lk-theme="default">
       <LiveKitRoom
@@ -159,10 +190,22 @@ export default function CallPage() {
         serverUrl={serverUrl}
         connectOptions={connectOptions}
         connect
-        video
-        audio
+        video={devices?.camera ?? false}
+        audio={devices?.microphone ?? false}
         onDisconnected={() => router.push("/")}
+        onMediaDeviceFailure={(failure, kind) => {
+          // Камера/микрофон отвалились — связь при этом жива, звонок не рвём.
+          console.warn("LiveKit media device failure:", failure, kind);
+          setNotice(describeDeviceFailure(failure, kind));
+        }}
         onError={(error) => {
+          // Не смогли включить камеру/микрофон — связь при этом в порядке,
+          // из звонка не выбрасываем. Текст предупреждения уже поставил
+          // onMediaDeviceFailure: он знает, какое именно устройство подвело.
+          if (isMediaDeviceError(error)) {
+            console.warn("LiveKit device error (звонок продолжается):", error);
+            return;
+          }
           console.error("LiveKit connection error:", error);
           setStatus({
             kind: "error",
@@ -171,7 +214,11 @@ export default function CallPage() {
           });
         }}
       >
-        <FamilyConference />
+        <FamilyConference
+          devices={devices ?? { camera: false, microphone: false, supported: false }}
+          notice={notice}
+          onDismissNotice={() => setNotice(null)}
+        />
       </LiveKitRoom>
     </div>
   );

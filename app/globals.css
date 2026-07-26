@@ -165,6 +165,18 @@ textarea {
   color: var(--danger);
 }
 
+/* Некритичное предупреждение на светлом экране (нет камеры и т.п.). */
+.warning-note {
+  background: #fff4e5;
+  color: #7a4b00;
+  border: 1px solid #f0d3a5;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 0;
+  max-width: 32ch;
+  font-size: 18px;
+}
+
 /* ---------- Доступность: видимый фокус ---------- */
 
 .call-button:focus-visible,
@@ -242,6 +254,46 @@ textarea {
   display: flex;
   flex-direction: column;
   background: var(--lk-bg, #111);
+}
+
+/* Плашка «камера не найдена» поверх видео — не перекрывает управление
+   и закрывается крестиком. */
+.family-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 8px 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #4a3a12;
+  color: #ffe9c2;
+  border: 1px solid #7a6224;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.family-notice-close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .family-notice-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.family-notice-close:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .family-stage {
